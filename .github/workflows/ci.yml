@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Test MCP Handshake & Tools List
+      run: |
+        python3 -c '
+        import subprocess, json
+        p = subprocess.Popen(["python3", "run_server.py"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+        # Test Initialize
+        p.stdin.write(json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}) + "\n")
+        p.stdin.flush()
+        init_res = json.loads(p.stdout.readline())
+        assert init_res["result"]["protocolVersion"] == "2024-11-05"
+        # Test Tools List
+        p.stdin.write(json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}) + "\n")
+        p.stdin.flush()
+        tools_res = json.loads(p.stdout.readline())
+        assert len(tools_res["result"]["tools"]) == 12
+        p.terminate()
+        print("CI Verified: All 12 MCP tools initialized successfully!")
+        '
